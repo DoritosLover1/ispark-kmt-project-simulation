@@ -72,6 +72,7 @@ class _MainGateScreenState extends State<MainGateScreen> {
   bool _isSupabaseConfigured = false;
 
   final TextEditingController _plateController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final List<TextEditingController> _otpControllers = List.generate(
     6,
     (_) => TextEditingController(),
@@ -121,6 +122,7 @@ class _MainGateScreenState extends State<MainGateScreen> {
   void dispose() {
     _clockTimer.cancel();
     _plateController.dispose();
+    _phoneController.dispose();
     for (var c in _otpControllers) {
       c.dispose();
     }
@@ -329,6 +331,7 @@ class _MainGateScreenState extends State<MainGateScreen> {
 
   void _verifyAndTrigger() async {
     final plateValue = _plateController.text.replaceAll(' ', '').trim();
+    final phoneValue = _phoneController.text.replaceAll(' ', '').trim();
 
     String otpValue = '';
     for (var c in _otpControllers) {
@@ -339,6 +342,14 @@ class _MainGateScreenState extends State<MainGateScreen> {
       _addLog('system', 'HATA: Lütfen bir plaka bilgisi giriniz!', 'error');
       _showErrorDialog(
         'Lütfen plaka bilgisini giriniz (Elle girin veya sensörden okutun).',
+      );
+      return;
+    }
+
+    if (phoneValue.length != 11 || !phoneValue.startsWith('05')) {
+      _addLog('system', 'HATA: Geçersiz telefon numarası!', 'error');
+      _showErrorDialog(
+        'Lütfen telefon numaranızı başında 0 olacak şekilde 11 hane olarak giriniz. (Örn: 05XX XXX XX XX)',
       );
       return;
     }
@@ -387,7 +398,12 @@ class _MainGateScreenState extends State<MainGateScreen> {
       final response = await client.functions.invoke(
         _sbFunction,
         headers: {'x-secret-key': _secretKey},
-        body: {'plaka': plateValue, 'otopark_id': _otoparkId, 'otp': otpValue},
+        body: {
+          'plaka': plateValue,
+          'otopark_id': _otoparkId,
+          'otp': otpValue,
+          'telefon_numarasi': phoneValue,
+        },
       );
 
       final data = response.data;
@@ -1190,7 +1206,54 @@ class _MainGateScreenState extends State<MainGateScreen> {
         const SizedBox(height: 16),
 
         _buildCard(
-          title: '2. Giriş: Tek Kullanımlık Şifre (OTP)',
+          title: '2. Giriş: Telefon Numarası',
+          badgeText: 'Zorunlu',
+          badgeColor: const Color(0xffff0055),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Lütfen telefon numaranızı başında 0 olacak şekilde giriniz.',
+                style: TextStyle(fontSize: 13, color: Colors.white70),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey, width: 2),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15.0),
+                  child: TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    style: GoogleFonts.shareTechMono(
+                      color: Colors.black,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2.0,
+                    ),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: '05XX XXX XX XX',
+                      hintStyle: TextStyle(color: Colors.black26),
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(11),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        _buildCard(
+          title: '3. Giriş: Tek Kullanımlık Şifre (OTP)',
           badgeText: 'Zorunlu',
           badgeColor: const Color(0xffff0055),
           child: Column(
